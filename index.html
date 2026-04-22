@@ -85,6 +85,7 @@
             background: linear-gradient(180deg, #1a1a0a 0%, #0d0d05 100%);
             border: 3px solid var(--gold);
             border-radius: 20px; width: 100%; max-width: 480px;
+            max-height: 90vh; overflow-y: auto;
             padding: 28px;
             box-shadow: 0 0 60px rgba(255,213,79,0.15);
             transform: scale(0.92); transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
@@ -1024,20 +1025,20 @@
     <div class="panel-sync">
         <button class="btn-cerrar-sync" id="btn-cerrar-sync"><i class="fas fa-times"></i></button>
         <div class="sync-titulo"><i class="fas fa-sync-alt"></i> SINCRONIZAR</div>
-        <div class="sync-sub">Lleva tu progreso a otro dispositivo o respalda tus datos.</div>
+        <div class="sync-sub">Tu progreso se sincroniza automáticamente en todos tus dispositivos via Firebase. Usa estas opciones para respaldar o restaurar tus datos.</div>
         <div class="sync-opciones">
             <button class="sync-btn exportar" id="btn-exportar">
                 <i class="fas fa-download"></i>
                 <div>
-                    Exportar progreso
+                    Exportar respaldo
                     <span class="sync-btn-desc">Descarga un archivo .json con tus capturas y equipos</span>
                 </div>
             </button>
             <button class="sync-btn importar" id="btn-importar">
                 <i class="fas fa-upload"></i>
                 <div>
-                    Importar progreso
-                    <span class="sync-btn-desc">Carga un archivo .json exportado anteriormente</span>
+                    Importar respaldo
+                    <span class="sync-btn-desc">Restaura desde un archivo .json exportado anteriormente</span>
                 </div>
             </button>
             <input type="file" id="input-importar" accept=".json" style="display:none">
@@ -1046,30 +1047,9 @@
                 <i class="fas fa-trash-alt"></i>
                 <div>
                     Borrar todo el progreso
-                    <span class="sync-btn-desc">Elimina capturas y equipos guardados en este dispositivo</span>
+                    <span class="sync-btn-desc">Elimina capturas y equipos en todos los dispositivos</span>
                 </div>
             </button>
-        </div>
-        <div class="sync-info-red">
-            <div class="sync-info-red-titulo"><i class="fas fa-wifi"></i> ACCESO DESDE OTRO DISPOSITIVO (MISMA RED)</div>
-            <p>Asegúrate de usar el comando <strong style="color:var(--text-bright);">python -m http.server 8000 --bind 0.0.0.0</strong></p>
-            <p style="margin-top:8px;">Luego busca tu IP abriendo una nueva Terminal y escribiendo:</p>
-            <div class="sync-ip" style="margin:6px 0;">
-                <span style="color:var(--text-bright);font-size:10px;">ipconfig</span>
-                <button class="btn-copiar-ip" onclick="navigator.clipboard.writeText('ipconfig')">Copiar</button>
-            </div>
-            <p>Busca <strong style="color:var(--gold);">Dirección IPv4</strong> — será algo como <strong style="color:var(--text-bright);">192.168.X.X</strong></p>
-            <p style="margin-top:8px;">Luego abre en tu iPhone o PC:</p>
-            <div class="sync-ip">
-                <span>http://<span class="sync-ip-valor" id="sync-ip-valor">192.168.X.X</span>:8000/pokedex4claud.html</span>
-                <button class="btn-copiar-ip" id="btn-copiar-ip">Copiar</button>
-            </div>
-            <p style="margin-top:10px;font-size:11px;">💡 Reemplaza <strong style="color:var(--gold);">192.168.X.X</strong> con el número que encontraste en ipconfig. Ambos dispositivos deben estar en el mismo WiFi o el iPhone compartiendo hotspot.</p>
-            <div style="margin-top:12px;display:flex;align-items:center;gap:10px;">
-                <input type="text" id="input-ip-manual" placeholder="Escribe tu IP aquí (192.168.X.X)"
-                    style="flex:1;padding:8px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,213,79,0.3);border-radius:6px;color:var(--text-bright);font-family:'Outfit',sans-serif;font-size:13px;outline:none;">
-                <button class="btn-copiar-ip" id="btn-guardar-ip" style="padding:8px 14px;font-size:12px;">Guardar</button>
-            </div>
         </div>
     </div>
 </div>
@@ -2217,7 +2197,6 @@ const overlaySync = document.getElementById('overlay-sync');
 document.getElementById('btn-abrir-sync').addEventListener('click', () => {
     overlaySync.classList.add('abierto');
     document.body.style.overflow = 'hidden';
-    detectarIP();
 });
 
 document.getElementById('btn-cerrar-sync').addEventListener('click', cerrarSync);
@@ -2226,13 +2205,6 @@ overlaySync.addEventListener('click', e => { if (e.target === overlaySync) cerra
 function cerrarSync() {
     overlaySync.classList.remove('abierto');
     document.body.style.overflow = '';
-}
-
-// Mostrar instrucciones para encontrar IP manualmente
-function detectarIP() {
-    const ipEl = document.getElementById('sync-ip-valor');
-    // WebRTC no es confiable en todos los browsers/OS, mostramos instrucción clara
-    ipEl.textContent = 'ver instrucción abajo';
 }
 
 // Exportar
@@ -2304,27 +2276,6 @@ document.getElementById('btn-limpiar').addEventListener('click', () => {
     mostrarToast('Progreso eliminado', 'liberado');
     cerrarSync();
 });
-
-// Copiar IP al portapapeles
-document.getElementById('btn-copiar-ip').addEventListener('click', () => {
-    const ip = document.getElementById('sync-ip-valor').textContent;
-    const texto = `http://${ip}:8000/pokedex4claud.html`;
-    navigator.clipboard.writeText(texto).then(() => {
-        mostrarToast('Dirección copiada', 'capturado');    }).catch(() => {
-        mostrarToast('No se pudo copiar', 'liberado');
-    });
-});
-
-// Guardar IP manual (solo en memoria, no en localStorage)
-document.getElementById('btn-guardar-ip').addEventListener('click', () => {
-    const val = document.getElementById('input-ip-manual').value.trim();
-    if (!val) return;
-    document.getElementById('sync-ip-valor').textContent = val;
-    document.getElementById('input-ip-manual').value = '';
-    mostrarToast('IP actualizada', 'capturado');
-});
-
-// No recuperar IP guardada — no almacenar datos de red en el código
 
 
 // Cerrar con Escape
