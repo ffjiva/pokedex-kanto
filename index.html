@@ -1074,6 +1074,68 @@
     </div>
 </div>
 
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBRd4jbjZcy8tdZ-MOeHk_aPwV4DQM1k4o",
+    authDomain: "pokedex-kanto-db.firebaseapp.com",
+    databaseURL: "https://pokedex-kanto-db-default-rtdb.firebaseio.com",
+    projectId: "pokedex-kanto-db",
+    storageBucket: "pokedex-kanto-db.firebasestorage.app",
+    messagingSenderId: "564350038349",
+    appId: "1:564350038349:web:a0a2d0457d93d55ad3c704"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// ID único del usuario (se crea una vez y se guarda)
+let userId;
+try {
+    userId = localStorage.getItem('pokedex-user-id');
+    if (!userId) {
+        userId = 'user_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('pokedex-user-id', userId);
+    }
+} catch(e) { userId = 'user_default'; }
+
+// Escuchar cambios en Firebase y aplicarlos localmente
+onValue(ref(db, `usuarios/${userId}`), (snapshot) => {
+    const datos = snapshot.val();
+    if (!datos) return;
+
+    if (Array.isArray(datos.capturas)) {
+        idsCapturados = new Set(datos.capturas);
+        actualizarContador();
+        sincronizarTarjetas();
+        aplicarFiltros();
+    }
+    if (Array.isArray(datos.equipoPrincipal) && datos.equipoPrincipal.length === 6) {
+        equipoPrincipal = datos.equipoPrincipal;
+        if (document.getElementById('equipo-slots')) renderizarEquipo();
+    }
+    if (Array.isArray(datos.equipoEnemigo) && datos.equipoEnemigo.length === 6) {
+        equipoEnemigo = datos.equipoEnemigo;
+        if (document.getElementById('equipo-slots-enemigo')) renderizarEnemigo();
+    }
+});
+
+// Guardar en Firebase (reemplaza localStorage)
+window.fbGuardarTodo = () => {
+    set(ref(db, `usuarios/${userId}`), {
+        capturas: [...idsCapturados],
+        equipoPrincipal,
+        equipoEnemigo,
+        ultimaActualizacion: new Date().toISOString()
+    }).catch(err => console.error('Firebase error:', err));
+};
+
+console.log('Firebase conectado ✓ Usuario:', userId);
+</script>
+
 <script>
 /* ================================================================
    CONSTANTES
@@ -1146,14 +1208,17 @@ let analizadorAbierto = false;
 let oponenteSeleccionado = null;
 let idsCapturados = new Set();
 
-// Cargar capturas desde localStorage
+// Cargar capturas desde localStorage como fallback inicial
 try {
     const datosGuardados = JSON.parse(localStorage.getItem('pokedex-kanto-capturas') || '[]');
     if (Array.isArray(datosGuardados)) idsCapturados = new Set(datosGuardados);
 } catch(e) {}
 
 function guardarCapturas() {
-    localStorage.setItem('pokedex-kanto-capturas', JSON.stringify([...idsCapturados]));
+    // Guardar localmente como respaldo
+    try { localStorage.setItem('pokedex-kanto-capturas', JSON.stringify([...idsCapturados])); } catch(e) {}
+    // Guardar en Firebase
+    if (window.fbGuardarTodo) window.fbGuardarTodo();
 }
 
 /* ================================================================
@@ -1745,10 +1810,12 @@ try {
 } catch(e) {}
 
 function guardarEquipo() {
-    localStorage.setItem('pokedex-kanto-equipo', JSON.stringify(equipoPrincipal));
+    try { localStorage.setItem('pokedex-kanto-equipo', JSON.stringify(equipoPrincipal)); } catch(e) {}
+    if (window.fbGuardarTodo) window.fbGuardarTodo();
 }
 function guardarEnemigo() {
-    localStorage.setItem('pokedex-kanto-enemigo', JSON.stringify(equipoEnemigo));
+    try { localStorage.setItem('pokedex-kanto-enemigo', JSON.stringify(equipoEnemigo)); } catch(e) {}
+    if (window.fbGuardarTodo) window.fbGuardarTodo();
 }
 
 // Renderiza un bloque de slots genérico
@@ -2220,7 +2287,7 @@ document.getElementById('input-importar').addEventListener('change', function() 
             if (Array.isArray(datos.equipoPrincipal) && datos.equipoPrincipal.length === 6) equipoPrincipal = datos.equipoPrincipal;
             if (Array.isArray(datos.equipoEnemigo) && datos.equipoEnemigo.length === 6) equipoEnemigo = datos.equipoEnemigo;
 
-            guardarCapturas();
+            guardarCapturas(); // Esto guarda en Firebase y localStorage
             guardarEquipo();
             guardarEnemigo();
             actualizarContador();
