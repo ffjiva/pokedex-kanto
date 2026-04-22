@@ -1,0 +1,32 @@
+name: Deploy Pokedex
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Inyectar configuracion Firebase
+        run: |
+          cat > firebase-config.js << 'EOF'
+          window.FIREBASE_CONFIG = {
+            apiKey: "${{ secrets.FIREBASE_API_KEY }}",
+            authDomain: "pokedex-kanto-db.firebaseapp.com",
+            databaseURL: "https://pokedex-kanto-db-default-rtdb.firebaseio.com",
+            projectId: "pokedex-kanto-db",
+            storageBucket: "pokedex-kanto-db.firebasestorage.app",
+            messagingSenderId: "564350038349",
+            appId: "1:564350038349:web:a0a2d0457d93d55ad3c704"
+          };
+          EOF
+
+      - name: Publicar en GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./
+          exclude_assets: '.github,README.md'
