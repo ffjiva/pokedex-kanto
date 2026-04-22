@@ -1075,65 +1075,50 @@
 </div>
 
 <!-- Firebase SDK -->
+<script src="./firebase-config.js"></script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-const firebaseConfig = {
-    apiKey: "AIzaSyBRd4jbjZcy8tdZ-MOeHk_aPwV4DQM1k4o",
-    authDomain: "pokedex-kanto-db.firebaseapp.com",
-    databaseURL: "https://pokedex-kanto-db-default-rtdb.firebaseio.com",
-    projectId: "pokedex-kanto-db",
-    storageBucket: "pokedex-kanto-db.firebasestorage.app",
-    messagingSenderId: "564350038349",
-    appId: "1:564350038349:web:a0a2d0457d93d55ad3c704"
-};
+if (!window.FIREBASE_CONFIG) {
+    console.warn('firebase-config.js no encontrado - funcionando sin sincronizacion');
+} else {
+    const app = initializeApp(window.FIREBASE_CONFIG);
+    const db = getDatabase(app);
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+    // ID fijo del usuario — mismo en todos los dispositivos
+    const userId = 'ffjiva';
 
-// ID único del usuario (se crea una vez y se guarda)
-let userId;
-try {
-    userId = localStorage.getItem('pokedex-user-id');
-    if (!userId) {
-        userId = 'user_' + Math.random().toString(36).substr(2, 9);
-        localStorage.setItem('pokedex-user-id', userId);
-    }
-} catch(e) { userId = 'user_default'; }
+    onValue(ref(db, `usuarios/${userId}`), (snapshot) => {
+        const datos = snapshot.val();
+        if (!datos) return;
+        if (Array.isArray(datos.capturas)) {
+            idsCapturados = new Set(datos.capturas);
+            actualizarContador();
+            sincronizarTarjetas();
+            aplicarFiltros();
+        }
+        if (Array.isArray(datos.equipoPrincipal) && datos.equipoPrincipal.length === 6) {
+            equipoPrincipal = datos.equipoPrincipal;
+            if (document.getElementById('equipo-slots')) renderizarEquipo();
+        }
+        if (Array.isArray(datos.equipoEnemigo) && datos.equipoEnemigo.length === 6) {
+            equipoEnemigo = datos.equipoEnemigo;
+            if (document.getElementById('equipo-slots-enemigo')) renderizarEnemigo();
+        }
+    });
 
-// Escuchar cambios en Firebase y aplicarlos localmente
-onValue(ref(db, `usuarios/${userId}`), (snapshot) => {
-    const datos = snapshot.val();
-    if (!datos) return;
+    window.fbGuardarTodo = () => {
+        set(ref(db, `usuarios/${userId}`), {
+            capturas: [...idsCapturados],
+            equipoPrincipal,
+            equipoEnemigo,
+            ultimaActualizacion: new Date().toISOString()
+        }).catch(err => console.error('Firebase error:', err));
+    };
 
-    if (Array.isArray(datos.capturas)) {
-        idsCapturados = new Set(datos.capturas);
-        actualizarContador();
-        sincronizarTarjetas();
-        aplicarFiltros();
-    }
-    if (Array.isArray(datos.equipoPrincipal) && datos.equipoPrincipal.length === 6) {
-        equipoPrincipal = datos.equipoPrincipal;
-        if (document.getElementById('equipo-slots')) renderizarEquipo();
-    }
-    if (Array.isArray(datos.equipoEnemigo) && datos.equipoEnemigo.length === 6) {
-        equipoEnemigo = datos.equipoEnemigo;
-        if (document.getElementById('equipo-slots-enemigo')) renderizarEnemigo();
-    }
-});
-
-// Guardar en Firebase (reemplaza localStorage)
-window.fbGuardarTodo = () => {
-    set(ref(db, `usuarios/${userId}`), {
-        capturas: [...idsCapturados],
-        equipoPrincipal,
-        equipoEnemigo,
-        ultimaActualizacion: new Date().toISOString()
-    }).catch(err => console.error('Firebase error:', err));
-};
-
-console.log('Firebase conectado ✓ Usuario:', userId);
+    console.log('Firebase conectado. Usuario:', userId);
+}
 </script>
 
 <script>
